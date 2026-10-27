@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Ilaaliye – join the exam room</title>
+<style>
+  :root { --bg: #f6f7f9; --card: #fff; --text: #14181f; --muted: #5b6472; --accent: #0f9d8a; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0f1216; --card: #171b21; --text: #e8ebf0; --muted: #9aa3b2; --accent: #2dd4bf; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px;
+         background: var(--bg); color: var(--text); font: 16px/1.5 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+  main { width: 100%; max-width: 440px; background: var(--card); border-radius: 16px; padding: 28px 24px; text-align: center;
+         box-shadow: 0 6px 30px rgba(0,0,0,.08); }
+  h1 { margin: 0 0 6px; font-size: 22px; }
+  p { margin: 8px 0; color: var(--muted); }
+  .spin { width: 28px; height: 28px; margin: 14px auto; border: 3px solid var(--muted); border-top-color: var(--accent);
+          border-radius: 50%; animation: s 1s linear infinite; }
+  @keyframes s { to { transform: rotate(360deg); } }
+  a.btn { display: inline-block; margin-top: 12px; padding: 10px 18px; border-radius: 10px; background: var(--accent);
+          color: #fff; text-decoration: none; font-weight: 600; }
+  small { display: block; margin-top: 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Ilaaliye</h1>
+  <p id="msg">Finding your exam room…</p>
+  <div class="spin" id="spin"></div>
+  <div id="go"></div>
+  <small id="when"></small>
+</main>
+<script>
+/* Forwards students to the teacher's current exam-room address (link.json, updated by the
+   teacher's app). This page holds no student data and sends nothing anywhere. */
+(function () {
+  "use strict";
+  var room = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 12);
+  var msg = document.getElementById("msg"), spin = document.getElementById("spin"),
+      go = document.getElementById("go"), when = document.getElementById("when");
+  var TUNNEL = /^https:\/\/[a-z0-9-]{1,63}\.trycloudflare\.com$/;
+
+  function ago(iso) {
+    var m = Math.round((Date.now() - Date.parse(iso)) / 60000);
+    return isNaN(m) ? "" : m < 1 ? "just now" : m < 60 ? m + " min ago" : Math.round(m / 60) + " h ago";
+  }
+  function reachable(url) {  // the room answers? (no data is read, only whether it responds)
+    return Promise.race([
+      fetch(url + "/api/ping", { mode: "no-cors", cache: "no-store" }).then(function () { return true; }),
+      new Promise(function (r) { setTimeout(function () { r(false); }, 8000); })
+    ]).catch(function () { return false; });
+  }
+  function check() {
+    fetch("link.json?t=" + Date.now(), { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (s) {
+        when.textContent = s.updated ? "Room status updated " + ago(s.updated) : "";
+        if (s.state !== "open" || !TUNNEL.test(s.url || "")) {
+          msg.textContent = "The exam room is closed right now. This page keeps checking – leave it open, or ask your teacher.";
+          return setTimeout(check, 20000);
+        }
+        return reachable(s.url).then(function (ok) {
+          if (!ok) {
+            msg.textContent = "The exam room is starting or not reachable yet. Retrying…";
+            return setTimeout(check, 8000);
+          }
+          var target = s.url + "/join" + (room ? "?room=" + encodeURIComponent(room) : "");
+          msg.textContent = "Opening the exam room…";
+          go.innerHTML = "";
+          var a = document.createElement("a"); a.className = "btn"; a.href = target; a.textContent = "Open the exam room";
+          go.appendChild(a);
+          location.replace(target);
+        });
+      })
+      .catch(function () {
+        msg.textContent = "Cannot load the room status. Check your internet connection – retrying…";
+        setTimeout(check, 10000);
+      });
+  }
+  check();
+})();
+</script>
+</body>
+</html>
