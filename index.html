@@ -39,7 +39,7 @@
   var room = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 12);
   var msg = document.getElementById("msg"), spin = document.getElementById("spin"),
       go = document.getElementById("go"), when = document.getElementById("when");
-  var TUNNEL = /^https:\/\/[a-z0-9-]{1,63}\.trycloudflare\.com$/;
+  var TUNNEL = /^https:\/\/(?!api\.)[a-z0-9]+(-[a-z0-9]+)+\.trycloudflare\.com$/;  // quick tunnels only
 
   function ago(iso) {
     var m = Math.round((Date.now() - Date.parse(iso)) / 60000);
